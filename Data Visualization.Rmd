@@ -1,0 +1,484 @@
+---
+title: "Data Visualization for Data Science"
+output:
+  html_document:
+    theme: united
+    toc: true
+---
+
+
+
+## 1 Introduction
+
+>"The simple graph has brought more information to the data analyst's mind than any other device." - John Tukey
+
+We will try to answer some questions in this presentation. What is data visualization? Why do we really need it? What do we get for all our troubles? Surely, there must be more to it than a pretty picture!
+
+1. Exploratory Data Analysis
+  + To generate questions about the data.
+  
+  + Then answer questions using visualisation and data transformations
+  
+  + Refine questions and/or generate new ones
+  
+2. Once you have a model, a set of rules, to assess validity of the model
+
+3. Communication with the powers that be!
+
+------
+
+## 2  EDA
+
+### 2.1 Questions
+
+>"Far better an approximate answer to the right question, which is often vague, than an exact answer to the wrong question, which can always be made precise." - John Tukey
+
+This is more art than science, but typically you can start with the following questions:
+
+1. What type of variation occurs within data variables?
+2. What type of covariation occurs between data variables?
+
+
+### 2.2 Variation
+
+1. *Variation* is the tendency of the values of a variable to change from measurement to measurement. 
+2. For example the variation in repeated measurements in heights of a person. 
+
+To get a sense of how we can use this information to our advantage, lets first figure out how to plot distributions. 
+
+We will use the dataset `diamonds` that is provided in the `tidyr` library in R. It has 53940 rows and 10 variables. The dataset description is given as below:
+
+The features included are the following:
+
+| Variable | Description |
+|----------|-------------|
+| carat | Weight of the diamond |
+| cut | Quality of the cut (Fair/Good/Very Good/ Premium/Ideal) |
+| color | Diamond color, ranging from J (worst) to D (best) |
+| clarity | A measurement of how clear the diamond is (I1 (worst), SI1, SI2, VS1, VS2, VVS1, VVS2, IF (best)) |
+| depth | Total depth percentage |
+| table | Width of top of diamond relative to widest point (43???95) |
+| price | Price in US dollars) |
+| x | Length in mm (0 - 10.74) |
+| y |  Width in mm (0 - 58.9) |
+| z | Depth in mm (0 - 31.8) |
+```{r message=FALSE, warning=FALSE}
+library(tidyverse)
+head(diamonds)
+```
+
+#### 2.2.1 Visualizing Distributions 
+
+##### 2.2.1.1 Categorical Variables
+
+For *categorical variables* we can use **bar graphs** to get the sample distribution of the variable.
+
++ on the x axis **bar graphs** have placeholders for different values of the variable
+
++ The y axis has a count of these values.
+
+```{r message=FALSE, warning=FALSE}
+ggplot(data = diamonds) +
+  geom_bar(mapping = aes(x = cut))
+```
+
+Lets see the count in a tabular fashion
+
+
+```{r message=FALSE, warning=FALSE}
+diamonds %>% 
+  count(cut)
+```
+
+##### 2.2.1.2 Continuous Variables
+
+
+For *continuous variables* we use histograms.
+
++ Histograms are graphs where on the x axis, there are a number of bins (intervals) of continuous variable.
++ The y axis represents the count of values that fall under each interval. 
+
+```{r}
+ggplot(data = diamonds) +
+  geom_histogram(mapping = aes(x = carat), binwidth = 0.5)
+```
+
++ Notice that there is a lot going on in this graph
++ lets say can you use this graph to spot outliers in the data? 
++ How? And why are outliers bad, (are they really?)
+
+```{r}
+diamonds %>% 
+  count(cut_width(carat, 0.5))
+```
+
+
+So lets zoom in and try to characterise data where its more common.
+
+```{r}
+smaller <- diamonds %>% 
+  filter(carat < 3)
+  
+ggplot(data = smaller, mapping = aes(x = carat)) +
+  geom_histogram(binwidth = 0.1)
+```
+
+
+#### 2.2.2 Looking at values, now we ask questions
+
+1. Which values are the most common? Why?
+
+2. Which values are rare? Why? Does that match your expectations?
+
+3. Can you see any unusual patterns? What might explain them?
+
+Example
+
+The histogram below suggests several interesting questions:
+
+1. Why are there more diamonds at whole carats and common fractions of carats?
+
+2. Why are there more diamonds slightly to the right of each peak than there are slightly to the left of each peak?
+
+3. Why are there no diamonds bigger than 3 carats?
+
+```{r}
+ggplot(data = smaller, mapping = aes(x = carat)) +
+  geom_histogram(binwidth = 0.01)
+```
+
+Clusters of similar values suggest that subgroups exist in your data. To understand the subgroups, ask:
+
+1. How are the observations within each cluster similar to each other?
+
+2. How are the observations in separate clusters different from each other?
+
+3. How can you explain or describe the clusters?
+
+4.Why might the appearance of clusters be misleading?
+
+
+#### 2.2.3 Outliers
+
+There are specialsed ways of detecting outliers for multivariate data. For univariate, we can rely on two ways.
+
+##### 2.2.3.1 Summary description
+
+```{r}
+summary(diamonds$y)
+```
+
+Lets unpack this
+
++ The distribution seems right skewed. 
+
++ But the mean and the median are identical. So could the distribution be symmetric
+
++ The max value is very far away from the 75th percentile, so there are outliers in the right tail.
+
+##### 2.2.3.2 Histogram (quick and easy)
+
+```{r}
+
+ggplot(diamonds) + 
+  geom_histogram(mapping = aes(x = y), binwidth = 0.5)
+```
+
+------
+
+### 2.3 Covariation
+
+**Covariation** is the tendency for the values of two or more variables to vary together in a related way. We can spot this relationship by visualising them together on a graph
+
+
+#### 2.3.1 Continuous vs Categorical
+```{r}
+ggplot(data = diamonds, mapping = aes(x = price)) + 
+  geom_freqpoly(mapping = aes(colour = cut), binwidth = 500)  +
+    scale_colour_brewer(palette="Spectral")
+```
+
+Can you spot the problems with the graph here?
+
+The counts of categories are very different, so we cannot really judge the difference in shapes of distributions. Enter **density plots**. Density plots are histograms where the y axis becomes a probability.
+
+Lets see how it looks.
+
+```{r}
+ggplot(data = diamonds, mapping = aes(x = price, y = ..density..)) + 
+  geom_freqpoly(mapping = aes(colour = cut), binwidth = 500)  +
+    scale_colour_brewer(palette="Spectral")
+
+```
+
+Notice that it seems that diamonds with lowest quality, **fair**, seem to fetch the highest price? Whats going on? 
+
+There is a possibility, based of knowledge of diamonds that perhaps there are other variables that determine the price as well.
+
+I introduce to you, the **box plot**.
+
+```{r}
+ggplot(data = diamonds, mapping = aes(x = cut, y = price)) +
+  geom_boxplot()
+```
+
+A boxplot is a type of visual shorthand for a distribution of values. Each boxplot consists of:
+
+ + A box that stretches from the 25th percentile of the distribution to the 75th percentile, a distance known as the **interquartile range (IQR)**. In the middle of the box is a line that displays the median. These three lines give you a sense of the spread of the distribution and whether or not the distribution is symmetric about the median or skewed to one side.
+
++ Visual points that display observations that fall more than 1.5 times the IQR from either edge of the box. These outlying points are unusual so are plotted individually.
+
++ A line that extends from each end of the box and goes to the
+farthest non-outlier point in the distribution.
+
+##### 2.3.1.1 EXERCISE
+
+1. What variable in the diamonds dataset is most important for predicting the price of a diamond? How is that variable correlated with cut? Why does the combination of those two relationships lead to lower quality diamonds being more expensive?
+
+2. One problem with boxplots is that they were developed in an era of much smaller datasets and tend to display a prohibitively large number of ???outlying values???. One approach to remedy this problem is the letter value plot. Install the `lvplot` package, and try using geom_lv() to display the distribution of price vs cut. What do you learn? How do you interpret the plots?
+
+#### 2.3.2 Categorical vs Categorical
+```{r}
+diamonds %>% 
+  count(color, cut) %>%
+  ggplot(mapping = aes(x = color, y = cut)) +
+    geom_tile(mapping = aes(fill = n))
+```
+
+A useful hint, transforming the scale of the data can also help reveal subtle changes in the data.
+
+```{r}
+diamonds %>% 
+  count(color, cut) %>%
+  mutate(log_count = log(n)) %>%
+  ggplot(mapping = aes(x = color, y = cut)) +
+    geom_tile(mapping = aes(fill = log_count))
+
+```
+
+
+#### 2.3.3 Continuous vs Continuous
+
+A good way to visualise variation between continuous variables is to draw scatterplots.
+
+Lets plot the relationship between price and carats. We can see that it is an exponential relationship. We can also see ow outliers are more easily recognised.
+
+```{r}
+ggplot(data = diamonds) +
+  geom_point(mapping = aes(x = carat, y = price))
+```
+
+There are so many points in this graph that big areas are completely blackened. Lets use the `alpha` aesthetic to change this. The alpha parameter dims points based on a given value (lesser the value, more the translucence).
+
+```{r}
+ggplot(data = diamonds) + 
+  geom_point(mapping = aes(x = carat, y = price), alpha = 1 / 100)
+```
+While it makes the picture clearer big data sets still take a lot of time to render. We can bin ares on the graph based on point density to render the same graph quicker.
+
+```{r}
+ggplot(data = smaller) +
+  geom_bin2d(mapping = aes(x = carat, y = price))
+```
+
+------
+
+## 2.4 Simple modelling to answer subtle questions
+
+We saw previously that quality diamonds (poor cuts) have higher prices. And this is clearly against our intuition.
+
+```{r}
+ggplot(diamonds, aes(cut, price)) + geom_boxplot()
+```
+
+
+Then we also saw that price has a very strong (exponential) relationship with weight (carat). 
+
+```{r}
+ggplot(diamonds, aes(carat, price)) + 
+  geom_hex(bins = 50)
+```
+
+So lets put what we have learnt together, lets see whats the relationship between carat and diamond cut quality
+
+Using a density plot we see that in fair quality diamonds tend to be the heaviest.
+
+```{r}
+ggplot(data = diamonds, mapping = aes(x = carat, y = ..density..)) + 
+  geom_freqpoly(mapping = aes(colour = cut), binwidth = 0.5)  +
+    scale_colour_brewer(palette="Spectral")
+
+```
+
+Another way to look at it 
+
+```{r}
+ggplot(diamonds, aes(cut, carat)) + geom_boxplot()
+```
+
+
+
+So how do we proceed to remove this influence of weight on price and verify if our intution about quality and price makes sense?
+
+We train a very simple linear model to capture the pattern between carat and price. 
+
++ Since we have seen that this relationship is exponential we transform our data using log transformations. 
++ And we remove outliers in carat.
+
+
+```{r}
+diamonds2 <- diamonds %>% 
+  filter(carat <= 2.5) %>% 
+  mutate(lprice = log2(price), lcarat = log2(carat))
+
+ggplot(diamonds2, aes(lcarat, lprice)) + 
+  geom_hex(bins = 50)
+```
+
+Ok so we have trained the model, lets check the goodness of fit and the residuals
+
+```{r}
+mod_diamond <- lm(lprice ~ lcarat, data = diamonds2)
+
+grid <- diamonds2 %>% 
+  modelr::data_grid(carat = modelr::seq_range(carat, 20)) %>% 
+  mutate(lcarat = log2(carat)) %>% 
+  modelr::add_predictions(mod_diamond, "lprice") %>% 
+  mutate(price = 2 ^ lprice)
+
+ggplot(diamonds2, aes(carat, price)) + 
+  geom_hex(bins = 50) + 
+  geom_line(data = grid, colour = "red", size = 1)
+```
+
+```{r}
+diamonds2 <- diamonds2 %>% 
+  modelr::add_residuals(mod_diamond, "lresid")
+
+ggplot(diamonds2, aes(lcarat, lresid)) + 
+  geom_hex(bins = 50)
+```
+
+These residuals are ranndoly distributed, and hence are devioid of the influence of carat but not, the quality of the diamonds.
+
+Plotting the quality of diamonds annd the price residuals, we see:
+
+```{r}
+ggplot(diamonds2, aes(cut, lresid)) + geom_boxplot()
+```
+
+
+## 2.5 Graphs for communicating
+
+1. In exploratory data analysis, we use plots as tools for exploration.
+
+2. You know already the variables the plot will display.
+
+3. Usually make scores of plots Look at one and move on to the next. 
+
+4. Communicating however is a different ball game.
+
+5. Your managers or business stakeholders likely not share your background knowledge 
+
+### 2.5.1 So what makes a good graph for communication?
+
+1. Have a very clear objective in mind, what do gou want to communicate?
+
+2. Have labels, titles, annotations where ever necessary.
+
+3. Choose suitable colour schemes. (colour brewer is my favourite)
+
+3. Rememeber less is more. Do not clutter. Get rid of the 3d renditions, fancy garish colours, please do not have multiple y axis, etc
+
+
+### 2.5.2 Building a good plot
+ For this section I will use the dataset mpg.
+ 
+This dataset provides fuel economy data from 1999 and 2008 for 
+38 popular models of cars. The dataset is shipped with **ggplot2** package.
+
+| Variable | Type | Description | Details | 
+|----------|------|-------------|---------|
+| manufacturer | string | car manufacturer | 15 manufacturers |
+| model | string |model name | 38 models |
+| displ | numeric | engine displacement in liters| 1.6 - 7.0, median: 3.3 |
+| year | integer | year of manufacturing | 1999, 2008 |
+| cyl |  | number of cylinders | 4, 5, 6, 8 | 
+| trans| string | type of transmission | automatic, manual (many sub types) |
+| drv | string | drive type | f, r, 4, f=front wheel, r=rear wheel, 4=4 wheel|
+| cty | integer | city mileage | miles per gallon |
+| hwy | integer | highway mileage | miles per gallon |
+| fl | string | fuel type | 5 fuel types (diesel, petrol, electric, etc.) |
+| class | string | vehicle class | 7 types (compact, SUV, minivan etc.) | 
+| |||
+```{r}
+head(mpg)
+```
+ 
+
+#### 2.5.2.1 Lets start with an exploratory graph
+
+What is the relationshiop between highway mileage and engine displacement.
+
+```{r message=FALSE, warning=FALSE}
+ggplot(mpg, aes(displ, hwy)) +
+  geom_point(aes(color = class))
+```
+
+What can we do to improve the graph?
+
+1. The title could be less about stating the obvious and more about pointing to the main finding?
+
+2. Add informative labels?
+
+3. Add subtitle to point something striking about the data.
+
+4. Maybe add a trend line?
+
+
+```{r}
+ggplot(mpg, aes(displ, hwy)) +
+  geom_point(aes(colour = class)) +
+  geom_smooth(se = FALSE, size = 0.5) +
+  scale_colour_brewer(palette="Dark2") +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(), 
+        axis.line = element_blank(),
+        axis.ticks = element_blank(),
+        axis.text = element_text(size= 10, angle=0)) +
+  labs(
+    title = "Fuel efficiency generally decreases with engine size",
+    subtitle = "Two seaters (sports cars) are an exception because of their light weight",
+    x = "Engine displacement (L)",
+    y = "Highway fuel economy (mpg)",
+    colour = "Car type"
+  )
+```
+
+Or, depending on the context even this could be enough
+
+```{r}
+ggplot(mpg, aes(displ, hwy)) +
+  geom_point(aes()) +
+  geom_smooth(se = FALSE, size = 0.5) +
+  scale_colour_brewer(palette="Dark2") +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(), 
+        axis.line = element_blank(),
+        axis.ticks = element_blank(),
+        axis.text = element_text(size= 10, angle=0)) +
+  labs(
+    title = "Fuel efficiency generally decreases with engine size",
+    x = "Engine displacement (L)",
+    y = "Highway fuel economy (mpg)"
+  )
+```
+
+
+
+
+
+
+
